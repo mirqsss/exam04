@@ -55,11 +55,9 @@ class MyApp extends StatelessWidget {
               primary: Colors.purple.shade300,
               secondary: Colors.purple.shade200,
               surface: Colors.white,
-              background: Colors.grey.shade50,
               onPrimary: Colors.white,
               onSecondary: Colors.purple.shade900,
               onSurface: Colors.purple.shade900,
-              onBackground: Colors.purple.shade900,
             ),
             appBarTheme: AppBarTheme(
               backgroundColor: Colors.white,
@@ -78,14 +76,14 @@ class MyApp extends StatelessWidget {
             navigationBarTheme: NavigationBarThemeData(
               backgroundColor: Colors.white,
               indicatorColor: Colors.purple.shade100,
-              labelTextStyle: MaterialStateProperty.all(
+              labelTextStyle: WidgetStateProperty.all(
                 TextStyle(
                   color: Colors.purple.shade900,
                   fontFamily: 'CascadiaMono',
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              iconTheme: MaterialStateProperty.all(
+              iconTheme: WidgetStateProperty.all(
                 IconThemeData(color: Colors.purple.shade300),
               ),
             ),

@@ -186,7 +186,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         dueDate: _selectedDate,
                         userId: userId,
                         priority: 1,
-                        tags: [],
+                        tags: const [],
                       );
                       
                       // Сохраняем задачу
