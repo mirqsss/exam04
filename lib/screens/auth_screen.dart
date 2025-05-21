@@ -53,6 +53,18 @@ class _AuthScreenState extends State<AuthScreen> {
         case 'invalid-email':
           message = 'Неверный формат email';
           break;
+        case 'invalid-credential':
+          message = 'Неверные учетные данные';
+          break;
+        case 'user-disabled':
+          message = 'Пользователь отключен';
+          break;
+        case 'too-many-requests':
+          message = 'Слишком много попыток входа. Попробуйте позже';
+          break;
+        case 'operation-not-allowed':
+          message = 'Операция не разрешена';
+          break;
         default:
           message = 'Произошла ошибка: ${e.message}';
       }

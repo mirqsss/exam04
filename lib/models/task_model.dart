@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 part 'task_model.g.dart';
 
@@ -29,7 +30,16 @@ class TaskModel extends Equatable {
     this.completedAt,
   });
 
-  factory TaskModel.fromJson(Map<String, dynamic> json) => _$TaskModelFromJson(json);
+  factory TaskModel.fromJson(Map<String, dynamic> json) {
+    // Конвертируем Timestamp в DateTime для completedAt
+    if (json['completedAt'] != null) {
+      if (json['completedAt'] is Timestamp) {
+        json['completedAt'] = (json['completedAt'] as Timestamp).toDate().toIso8601String();
+      }
+    }
+    return _$TaskModelFromJson(json);
+  }
+
   Map<String, dynamic> toJson() => _$TaskModelToJson(this);
 
   TaskModel copyWith({

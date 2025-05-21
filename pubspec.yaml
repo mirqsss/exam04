@@ -40,6 +40,7 @@ dependencies:
   # Firebase
   firebase_core: ^2.24.2
   firebase_auth: ^4.15.3
+  firebase_auth_web: ^5.8.12
   cloud_firestore: ^4.13.6
   firebase_messaging: ^14.7.9
   
@@ -78,6 +79,7 @@ dev_dependencies:
   retrofit_generator: ^8.0.6
   json_serializable: ^6.7.1
   mockito: ^5.4.4
+  intl_utils: ^2.8.7
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

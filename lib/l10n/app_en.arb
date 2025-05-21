@@ -178,5 +178,6 @@
   "passwordTooShort": "Password must be at least 6 characters",
   "createAccount": "Create account",
   "haveAccount": "Already have an account? Sign in",
-  "add": "Add"
+  "add": "Add",
+  "selectDate": "Select a date"
 } 

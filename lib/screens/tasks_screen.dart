@@ -3,6 +3,9 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:exam04/services/task_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:exam04/models/task_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:exam04/screens/auth_screen.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -17,11 +20,26 @@ class _TasksScreenState extends State<TasksScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+  late FirebaseFirestore _firestore;
 
   @override
   void initState() {
     super.initState();
     _initTaskService();
+    _firestore = FirebaseFirestore.instance;
+    
+    // Проверка аутентификации
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      // Перенаправление на экран входа
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const AuthScreen()),
+          );
+        }
+      });
+    }
   }
 
   Future<void> _initTaskService() async {
@@ -31,10 +49,28 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _loadTasks() async {
-    final tasks = await _taskService.getTasks();
-    setState(() {
-      _tasks = tasks.map((task) => task.toJson()).toList();
-    });
+    try {
+      final tasks = await _taskService.getTasks();
+      setState(() {
+        _tasks = tasks.map((task) {
+          final taskJson = task.toJson();
+          // Конвертируем Timestamp в DateTime для completedAt
+          if (taskJson['completedAt'] != null && taskJson['completedAt'] is Timestamp) {
+            taskJson['completedAt'] = (taskJson['completedAt'] as Timestamp).toDate().toIso8601String();
+          }
+          return taskJson;
+        }).toList();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при загрузке задач: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -131,20 +167,43 @@ class _TasksScreenState extends State<TasksScreen> {
               ElevatedButton(
                 onPressed: () async {
                   if (_titleController.text.isNotEmpty) {
-                    await _taskService.addTask(TaskModel(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      title: _titleController.text,
-                      description: _descriptionController.text,
-                      isCompleted: false,
-                      createdAt: DateTime.now(),
-                      dueDate: _selectedDate,
-                      userId: _taskService.userId,
-                      priority: 1,
-                      tags: [],
-                    ));
-                    await _loadTasks();
-                    if (mounted) {
-                      Navigator.pop(context);
+                    try {
+                      final userId = _taskService.userId;
+                      if (userId.isEmpty) {
+                        throw Exception('Пользователь не аутентифицирован');
+                      }
+                      
+                      // Создаем новый документ
+                      final docRef = _firestore.collection('tasks').doc();
+                      
+                      // Создаем задачу с правильным ID
+                      final task = TaskModel(
+                        id: docRef.id,
+                        title: _titleController.text,
+                        description: _descriptionController.text,
+                        isCompleted: false,
+                        createdAt: DateTime.now(),
+                        dueDate: _selectedDate,
+                        userId: userId,
+                        priority: 1,
+                        tags: [],
+                      );
+                      
+                      // Сохраняем задачу
+                      await docRef.set(task.toJson());
+                      await _loadTasks();
+                      if (mounted) {
+                        Navigator.pop(context);
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Ошибка при создании задачи: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     }
                   }
                 },
@@ -206,10 +265,10 @@ class _TasksScreenState extends State<TasksScreen> {
                     title: Text(
                       task['title'],
                       style: TextStyle(
-                        decoration: task['completed']
+                        decoration: task['isCompleted']
                             ? TextDecoration.lineThrough
                             : null,
-                        color: task['completed'] ? Colors.grey : null,
+                        color: task['isCompleted'] ? Colors.grey : null,
                       ),
                     ),
                     subtitle: Column(
@@ -221,7 +280,7 @@ class _TasksScreenState extends State<TasksScreen> {
                             task['description'],
                             style: TextStyle(
                               color: Colors.grey[600],
-                              decoration: task['completed']
+                              decoration: task['isCompleted']
                                   ? TextDecoration.lineThrough
                                   : null,
                             ),
@@ -237,21 +296,24 @@ class _TasksScreenState extends State<TasksScreen> {
                       ],
                     ),
                     leading: Checkbox(
-                      value: task['completed'],
+                      value: task['isCompleted'],
                       onChanged: (value) async {
-                        final taskModel = TaskModel.fromJson(task);
-                        await _taskService.updateTask(TaskModel(
-                          id: taskModel.id,
-                          title: taskModel.title,
-                          description: taskModel.description,
-                          isCompleted: value ?? false,
-                          createdAt: taskModel.createdAt,
-                          dueDate: taskModel.dueDate,
-                          userId: taskModel.userId,
-                          priority: taskModel.priority,
-                          tags: taskModel.tags,
-                        ));
-                        await _loadTasks();
+                        try {
+                          await _taskService.toggleTaskCompletion(
+                            task['id'],
+                            value ?? false,
+                          );
+                          await _loadTasks();
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Ошибка при обновлении задачи: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       },
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),

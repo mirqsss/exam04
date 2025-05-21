@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -62,10 +63,19 @@ class AuthService extends ChangeNotifier {
     required String password,
   }) async {
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      if (kIsWeb) {
+        // Для веб-платформы используем signInWithEmailAndPassword напрямую
+        await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } else {
+        // Для мобильных платформ используем стандартный метод
+        await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      }
 
       final User? user = _auth.currentUser;
       if (user == null) throw Exception('Failed to sign in');
@@ -127,10 +137,26 @@ class AuthService extends ChangeNotifier {
     required String password,
   }) async {
     try {
-      await _auth.createUserWithEmailAndPassword(
+      final UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      final User? user = result.user;
+      if (user == null) throw Exception('Failed to create user');
+
+      // Создаем модель пользователя
+      final UserModel userModel = UserModel(
+        id: user.uid,
+        email: user.email!,
+        displayName: null,
+        photoUrl: user.photoURL,
+        createdAt: DateTime.now(),
+        lastLoginAt: DateTime.now(),
+      );
+
+      // Сохраняем данные пользователя в Firestore
+      await _firestore.collection('users').doc(user.uid).set(userModel.toJson());
     } catch (e) {
       rethrow;
     }

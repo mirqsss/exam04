@@ -171,5 +171,13 @@
   "taskVersionImported": "Тапсырма нұсқасы импортталды",
   "taskVersionSynced": "Тапсырма нұсқасы синхрондалды",
   "taskVersionBackedUp": "Тапсырма нұсқасы резервтік көшірмеге сақталды",
-  "taskVersionRestoredFromBackup": "Тапсырма нұсқасы резервтік көшірмеден қалпына келтірілді"
+  "taskVersionRestoredFromBackup": "Тапсырма нұсқасы резервтік көшірмеден қалпына келтірілді",
+  "enterEmail": "Email енгізіңіз",
+  "invalidEmail": "Email пішімі қате",
+  "enterPassword": "Құпия сөзді енгізіңіз",
+  "passwordTooShort": "Құпия сөз кемінде 6 таңба болуы керек",
+  "createAccount": "Тіркелгі құру",
+  "haveAccount": "Тіркелгіңіз бар ма? Кіру",
+  "add": "Қосу",
+  "selectDate": "Уақыт таңдаңыз"
 } 

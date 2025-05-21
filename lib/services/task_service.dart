@@ -78,7 +78,7 @@ class TaskService {
 
   // Обновление задачи
   Future<void> updateTask(TaskModel task) async {
-    await _firestore.collection('tasks').doc(task.id).update(task.toJson());
+    await _firestore.collection('tasks').doc(task.id).set(task.toJson(), SetOptions(merge: true));
   }
 
   // Удаление задачи
@@ -177,5 +177,13 @@ class TaskService {
     final tasks = getTasksJson();
     tasks.removeAt(index);
     await saveTasks(tasks);
+  }
+
+  DateTime parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.parse(value);
+    if (value is DateTime) return value;
+    throw Exception('Неизвестный формат даты');
   }
 } 
