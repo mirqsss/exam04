@@ -40,4 +40,6 @@ class LocalizationService extends ChangeNotifier {
         return 'Русский';
     }
   }
+
+  Locale get locale => _currentLocale;
 } 

@@ -7,16 +7,18 @@ import 'package:exam04/screens/tasks_screen.dart';
 import 'package:exam04/screens/calendar_screen.dart';
 import 'package:exam04/screens/statistics_screen.dart';
 import 'package:exam04/screens/profile_screen.dart';
+import '../utils/animations.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
+  late AnimationController _animationController;
 
   final List<Widget> _screens = [
     const TasksScreen(),
@@ -26,49 +28,75 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     
     return Scaffold(
+      backgroundColor: theme.colorScheme.background,
       appBar: AppBar(
-        title: Text(l10n.appTitle),
+        title: Text(
+          l10n.appTitle,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.language),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text(l10n.language),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ListTile(
-                        title: const Text('English'),
-                        onTap: () {
-                          context.read<LocalizationService>().setLocale('en');
-                          Navigator.pop(context);
-                        },
-                      ),
-                      ListTile(
-                        title: const Text('Русский'),
-                        onTap: () {
-                          context.read<LocalizationService>().setLocale('ru');
-                          Navigator.pop(context);
-                        },
-                      ),
-                      ListTile(
-                        title: const Text('Қазақша'),
-                        onTap: () {
-                          context.read<LocalizationService>().setLocale('kk');
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ],
+          CustomFadeTransition(
+            isVisible: true,
+            child: IconButton(
+              icon: const Icon(Icons.language),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(l10n.language),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          title: const Text('English'),
+                          onTap: () {
+                            context.read<LocalizationService>().setLocale('en');
+                            Navigator.pop(context);
+                          },
+                        ),
+                        ListTile(
+                          title: const Text('Русский'),
+                          onTap: () {
+                            context.read<LocalizationService>().setLocale('ru');
+                            Navigator.pop(context);
+                          },
+                        ),
+                        ListTile(
+                          title: const Text('Қазақша'),
+                          onTap: () {
+                            context.read<LocalizationService>().setLocale('kk');
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -80,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Ошибка при выходе: $e'),
-                      backgroundColor: Colors.red,
+                      backgroundColor: theme.colorScheme.error,
                     ),
                   );
                 }
@@ -89,7 +117,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _screens[_selectedIndex],
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.1, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: _screens[_selectedIndex],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {

@@ -12,69 +12,148 @@ import 'package:exam04/screens/tasks_screen.dart';
 import 'package:exam04/screens/calendar_screen.dart';
 import 'package:exam04/screens/statistics_screen.dart';
 import 'package:exam04/screens/profile_screen.dart';
+import 'package:exam04/theme/app_theme.dart';
+import 'services/fcm_service.dart';
+import 'utils/animations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  
+  // Инициализация FCM
+  final fcmService = FCMService();
+  await fcmService.initialize();
+  
+  String? token = await fcmService.getToken();
+  print('FCM Token: $token');
+  
   final prefs = await SharedPreferences.getInstance();
-  runApp(MyApp(prefs: prefs));
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => LocalizationService(prefs)),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  final SharedPreferences prefs;
-  
-  const MyApp({super.key, required this.prefs});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => LocalizationService(prefs),
-        ),
-        ChangeNotifierProvider(
-          create: (_) {
-            final authService = AuthService();
-            authService.authStateChanges.listen((user) {
-              if (user == null) {
-                // Пользователь вышел
-                debugPrint('User signed out');
-              }
-            });
-            return authService;
+    return Consumer<LocalizationService>(
+      builder: (context, localizationService, _) {
+        return MaterialApp(
+          title: 'TaskMaster',
+          theme: ThemeData(
+            useMaterial3: true,
+            fontFamily: 'CascadiaMono',
+            colorScheme: ColorScheme.light(
+              primary: Colors.purple.shade300,
+              secondary: Colors.purple.shade200,
+              surface: Colors.white,
+              background: Colors.grey.shade50,
+              onPrimary: Colors.white,
+              onSecondary: Colors.purple.shade900,
+              onSurface: Colors.purple.shade900,
+              onBackground: Colors.purple.shade900,
+            ),
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              centerTitle: false,
+              titleSpacing: 24,
+              iconTheme: IconThemeData(color: Colors.purple.shade300),
+              titleTextStyle: TextStyle(
+                color: Colors.purple.shade900,
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'CascadiaMono',
+                letterSpacing: -0.5,
+              ),
+            ),
+            navigationBarTheme: NavigationBarThemeData(
+              backgroundColor: Colors.white,
+              indicatorColor: Colors.purple.shade100,
+              labelTextStyle: MaterialStateProperty.all(
+                TextStyle(
+                  color: Colors.purple.shade900,
+                  fontFamily: 'CascadiaMono',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              iconTheme: MaterialStateProperty.all(
+                IconThemeData(color: Colors.purple.shade300),
+              ),
+            ),
+            floatingActionButtonTheme: FloatingActionButtonThemeData(
+              backgroundColor: Colors.purple.shade300,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            cardTheme: CardTheme(
+              color: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple.shade300,
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(
+                  fontFamily: 'CascadiaMono',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('ru'),
+            Locale('kk'),
+          ],
+          locale: localizationService.locale,
+          home: Consumer<AuthService>(
+            builder: (context, authService, _) {
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: authService.isAuthenticated
+                    ? const HomeScreen(key: ValueKey('home'))
+                    : const AuthScreen(key: ValueKey('auth')),
+              );
+            },
+          ),
+          onGenerateRoute: (settings) {
+            if (settings.name == '/home') {
+              return FadePageRoute(child: const HomeScreen());
+            }
+            if (settings.name == '/auth') {
+              return FadePageRoute(child: const AuthScreen());
+            }
+            return null;
           },
-        ),
-      ],
-      child: Consumer<LocalizationService>(
-        builder: (context, localizationService, child) {
-          return MaterialApp(
-            title: 'Task Manager',
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-              useMaterial3: true,
-            ),
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: const [
-              Locale('en'),
-              Locale('ru'),
-              Locale('kk'),
-            ],
-            locale: localizationService.currentLocale,
-            home: Consumer<AuthService>(
-              builder: (context, authService, _) {
-                return authService.isAuthenticated
-                    ? const HomeScreen()
-                    : const AuthScreen();
-              },
-            ),
-          );
-        },
-      ),
+        );
+      },
     );
   }
 }
@@ -170,6 +249,22 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class FadePageRouteBuilder extends PageTransitionsBuilder {
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: animation,
+      child: child,
     );
   }
 }

@@ -50,7 +50,7 @@
   "warning": "Warning",
   "info": "Information",
   "loading": "Loading...",
-  "noTasks": "No Tasks",
+  "noTasks": "No active tasks",
   "noInternetConnection": "No Internet Connection",
   "tryAgain": "Try Again",
   "search": "Search",
@@ -179,5 +179,6 @@
   "createAccount": "Create account",
   "haveAccount": "Already have an account? Sign in",
   "add": "Add",
-  "selectDate": "Select a date"
+  "selectDate": "Select a date",
+  "noCompletedTasks": "No completed tasks"
 } 

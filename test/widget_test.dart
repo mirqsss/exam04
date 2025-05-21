@@ -14,7 +14,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     
-    await tester.pumpWidget(MyApp(prefs: prefs));
+    await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
     expect(find.text('TaskMaster'), findsOneWidget);

@@ -4,8 +4,6 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:exam04/services/task_service.dart';
 import 'package:exam04/models/task_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
-import 'package:exam04/services/auth_service.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});

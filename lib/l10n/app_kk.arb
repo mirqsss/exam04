@@ -179,5 +179,6 @@
   "createAccount": "Тіркелгі құру",
   "haveAccount": "Тіркелгіңіз бар ма? Кіру",
   "add": "Қосу",
-  "selectDate": "Уақыт таңдаңыз"
+  "selectDate": "Уақыт таңдаңыз",
+  "noCompletedTasks": "Орындалған тапсырмалар жоқ"
 } 

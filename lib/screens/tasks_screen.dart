@@ -226,116 +226,187 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    final inProgressTasks = _tasks.where((task) => !task['isCompleted']).toList();
+    final completedTasks = _tasks.where((task) => task['isCompleted']).toList();
 
     return Scaffold(
-      body: _tasks.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.task_alt,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.noTasks,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+      backgroundColor: Colors.transparent,
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                l10n.inProgress,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          if (inProgressTasks.isEmpty)
+            SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.task_alt,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        l10n.noTasks,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _tasks.length,
-              itemBuilder: (context, index) {
-                final task = _tasks[index];
-                final createdAt = DateTime.parse(task['createdAt']);
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    title: Text(
-                      task['title'],
-                      style: TextStyle(
-                        decoration: task['isCompleted']
-                            ? TextDecoration.lineThrough
-                            : null,
-                        color: task['isCompleted'] ? Colors.grey : null,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (task['description'].isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            task['description'],
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              decoration: task['isCompleted']
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Text(
-                          'Создано: ${createdAt.day}/${createdAt.month}/${createdAt.year}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[500],
-                              ),
-                        ),
-                      ],
-                    ),
-                    leading: Checkbox(
-                      value: task['isCompleted'],
-                      onChanged: (value) async {
-                        try {
-                          await _taskService.toggleTaskCompletion(
-                            task['id'],
-                            value ?? false,
-                          );
-                          await _loadTasks();
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Ошибка при обновлении задачи: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      color: Colors.red[300],
-                      onPressed: () async {
-                        final taskModel = TaskModel.fromJson(task);
-                        await _taskService.deleteTask(taskModel.id);
-                        await _loadTasks();
-                      },
-                    ),
-                  ),
-                );
-              },
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final task = inProgressTasks[index];
+                  final createdAt = DateTime.parse(task['createdAt']);
+                  return _buildTaskCard(task, createdAt, theme);
+                },
+                childCount: inProgressTasks.length,
+              ),
             ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                l10n.completed,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          if (completedTasks.isEmpty)
+            SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        l10n.noCompletedTasks,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final task = completedTasks[index];
+                  final createdAt = DateTime.parse(task['createdAt']);
+                  return _buildTaskCard(task, createdAt, theme);
+                },
+                childCount: completedTasks.length,
+              ),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addTask,
         icon: const Icon(Icons.add),
         label: Text(l10n.addTask),
+      ),
+    );
+  }
+
+  Widget _buildTaskCard(Map<String, dynamic> task, DateTime createdAt, ThemeData theme) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        title: Text(
+          task['title'],
+          style: TextStyle(
+            decoration: task['isCompleted'] ? TextDecoration.lineThrough : null,
+            color: task['isCompleted'] ? Colors.grey : null,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (task['description'].isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                task['description'],
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  decoration: task['isCompleted'] ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Создано: ${createdAt.day}/${createdAt.month}/${createdAt.year}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+        leading: Checkbox(
+          value: task['isCompleted'],
+          onChanged: (value) async {
+            try {
+              await _taskService.toggleTaskCompletion(
+                task['id'],
+                value ?? false,
+              );
+              await _loadTasks();
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Ошибка при обновлении задачи: $e'),
+                    backgroundColor: theme.colorScheme.error,
+                  ),
+                );
+              }
+            }
+          },
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline),
+          color: Colors.red[300],
+          onPressed: () async {
+            final taskModel = TaskModel.fromJson(task);
+            await _taskService.deleteTask(taskModel.id);
+            await _loadTasks();
+          },
+        ),
       ),
     );
   }
