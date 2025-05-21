@@ -16,40 +16,64 @@ import 'package:exam04/screens/profile_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const MyApp());
+  final prefs = await SharedPreferences.getInstance();
+  runApp(MyApp(prefs: prefs));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final SharedPreferences prefs;
+  
+  const MyApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthService(),
-      child: MaterialApp(
-        title: 'Task Manager',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => LocalizationService(prefs),
         ),
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('en'),
-          Locale('ru'),
-          Locale('kk'),
-        ],
-        home: Consumer<AuthService>(
-          builder: (context, authService, _) {
-            return authService.isAuthenticated
-                ? const HomeScreen()
-                : const AuthScreen();
+        ChangeNotifierProvider(
+          create: (_) {
+            final authService = AuthService();
+            authService.authStateChanges.listen((user) {
+              if (user == null) {
+                // Пользователь вышел
+                debugPrint('User signed out');
+              }
+            });
+            return authService;
           },
         ),
+      ],
+      child: Consumer<LocalizationService>(
+        builder: (context, localizationService, child) {
+          return MaterialApp(
+            title: 'Task Manager',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+              useMaterial3: true,
+            ),
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en'),
+              Locale('ru'),
+              Locale('kk'),
+            ],
+            locale: localizationService.currentLocale,
+            home: Consumer<AuthService>(
+              builder: (context, authService, _) {
+                return authService.isAuthenticated
+                    ? const HomeScreen()
+                    : const AuthScreen();
+              },
+            ),
+          );
+        },
       ),
     );
   }

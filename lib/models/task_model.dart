@@ -8,25 +8,25 @@ class TaskModel extends Equatable {
   final String id;
   final String title;
   final String description;
-  final DateTime dueDate;
   final bool isCompleted;
-  final String userId;
   final DateTime createdAt;
-  final DateTime? completedAt;
+  final DateTime dueDate;
+  final String userId;
   final int priority;
   final List<String> tags;
+  final DateTime? completedAt;
 
   const TaskModel({
     required this.id,
     required this.title,
     required this.description,
-    required this.dueDate,
     required this.isCompleted,
-    required this.userId,
     required this.createdAt,
-    this.completedAt,
+    required this.dueDate,
+    required this.userId,
     required this.priority,
     required this.tags,
+    this.completedAt,
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) => _$TaskModelFromJson(json);
@@ -36,25 +36,25 @@ class TaskModel extends Equatable {
     String? id,
     String? title,
     String? description,
-    DateTime? dueDate,
     bool? isCompleted,
-    String? userId,
     DateTime? createdAt,
-    DateTime? completedAt,
+    DateTime? dueDate,
+    String? userId,
     int? priority,
     List<String>? tags,
+    DateTime? completedAt,
   }) {
     return TaskModel(
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
-      dueDate: dueDate ?? this.dueDate,
       isCompleted: isCompleted ?? this.isCompleted,
-      userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
-      completedAt: completedAt ?? this.completedAt,
+      dueDate: dueDate ?? this.dueDate,
+      userId: userId ?? this.userId,
       priority: priority ?? this.priority,
       tags: tags ?? this.tags,
+      completedAt: completedAt ?? this.completedAt,
     );
   }
 
@@ -63,12 +63,12 @@ class TaskModel extends Equatable {
         id,
         title,
         description,
-        dueDate,
         isCompleted,
-        userId,
         createdAt,
-        completedAt,
+        dueDate,
+        userId,
         priority,
         tags,
+        completedAt,
       ];
 } 

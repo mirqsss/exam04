@@ -4,10 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalizationService extends ChangeNotifier {
   static const String _localeKey = 'locale';
   final SharedPreferences _prefs;
-  Locale _currentLocale;
+  late Locale _currentLocale;
 
-  LocalizationService(this._prefs)
-      : _currentLocale = Locale(_prefs.getString(_localeKey) ?? 'en');
+  LocalizationService(this._prefs) {
+    _currentLocale = Locale(_prefs.getString(_localeKey) ?? 'ru');
+  }
 
   Locale get currentLocale => _currentLocale;
 

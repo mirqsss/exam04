@@ -89,6 +89,8 @@ class AuthService extends ChangeNotifier {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
+      _user = null;
+      notifyListeners();
     } catch (e) {
       throw Exception('Failed to sign out: $e');
     }

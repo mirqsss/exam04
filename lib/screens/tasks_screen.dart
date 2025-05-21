@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:exam04/blocs/task/task_bloc.dart';
-import 'package:exam04/blocs/task/task_event.dart';
-import 'package:exam04/models/task_model.dart';
 import 'package:exam04/services/task_service.dart';
-import 'package:exam04/services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:exam04/models/task_model.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -15,9 +12,30 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  final List<Map<String, dynamic>> _tasks = [];
+  late TaskService _taskService;
+  List<Map<String, dynamic>> _tasks = [];
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _initTaskService();
+  }
+
+  Future<void> _initTaskService() async {
+    final prefs = await SharedPreferences.getInstance();
+    _taskService = TaskService(prefs: prefs);
+    _loadTasks();
+  }
+
+  Future<void> _loadTasks() async {
+    final tasks = await _taskService.getTasks();
+    setState(() {
+      _tasks = tasks.map((task) => task.toJson()).toList();
+    });
+  }
 
   @override
   void dispose() {
@@ -29,6 +47,7 @@ class _TasksScreenState extends State<TasksScreen> {
   void _addTask() {
     _titleController.clear();
     _descriptionController.clear();
+    _selectedDate = DateTime.now();
     
     showModalBottomSheet(
       context: context,
@@ -87,19 +106,46 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
                 maxLines: 3,
               ),
+              const SizedBox(height: 16),
+              ListTile(
+                title: Text(AppLocalizations.of(context)!.dueDate),
+                subtitle: Text(
+                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                ),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                  );
+                  if (date != null) {
+                    setState(() {
+                      _selectedDate = date;
+                    });
+                  }
+                },
+              ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_titleController.text.isNotEmpty) {
-                    setState(() {
-                      _tasks.add({
-                        'title': _titleController.text,
-                        'description': _descriptionController.text,
-                        'completed': false,
-                        'createdAt': DateTime.now(),
-                      });
-                    });
-                    Navigator.pop(context);
+                    await _taskService.addTask(TaskModel(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      title: _titleController.text,
+                      description: _descriptionController.text,
+                      isCompleted: false,
+                      createdAt: DateTime.now(),
+                      dueDate: _selectedDate,
+                      userId: _taskService.userId,
+                      priority: 1,
+                      tags: [],
+                    ));
+                    await _loadTasks();
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -148,6 +194,7 @@ class _TasksScreenState extends State<TasksScreen> {
               itemCount: _tasks.length,
               itemBuilder: (context, index) {
                 final task = _tasks[index];
+                final createdAt = DateTime.parse(task['createdAt']);
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   elevation: 2,
@@ -182,7 +229,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         ],
                         const SizedBox(height: 8),
                         Text(
-                          'Создано: ${task['createdAt'].day}/${task['createdAt'].month}/${task['createdAt'].year}',
+                          'Создано: ${createdAt.day}/${createdAt.month}/${createdAt.year}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Colors.grey[500],
                               ),
@@ -191,10 +238,20 @@ class _TasksScreenState extends State<TasksScreen> {
                     ),
                     leading: Checkbox(
                       value: task['completed'],
-                      onChanged: (value) {
-                        setState(() {
-                          task['completed'] = value;
-                        });
+                      onChanged: (value) async {
+                        final taskModel = TaskModel.fromJson(task);
+                        await _taskService.updateTask(TaskModel(
+                          id: taskModel.id,
+                          title: taskModel.title,
+                          description: taskModel.description,
+                          isCompleted: value ?? false,
+                          createdAt: taskModel.createdAt,
+                          dueDate: taskModel.dueDate,
+                          userId: taskModel.userId,
+                          priority: taskModel.priority,
+                          tags: taskModel.tags,
+                        ));
+                        await _loadTasks();
                       },
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
@@ -203,10 +260,10 @@ class _TasksScreenState extends State<TasksScreen> {
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       color: Colors.red[300],
-                      onPressed: () {
-                        setState(() {
-                          _tasks.removeAt(index);
-                        });
+                      onPressed: () async {
+                        final taskModel = TaskModel.fromJson(task);
+                        await _taskService.deleteTask(taskModel.id);
+                        await _loadTasks();
                       },
                     ),
                   ),
@@ -217,207 +274,6 @@ class _TasksScreenState extends State<TasksScreen> {
         onPressed: _addTask,
         icon: const Icon(Icons.add),
         label: Text(l10n.addTask),
-      ),
-    );
-  }
-}
-
-class TasksView extends StatelessWidget {
-  const TasksView({super.key});
-
-  void _showAddTaskDialog(BuildContext context) {
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final dueDateController = TextEditingController();
-    final l10n = AppLocalizations.of(context)!;
-    DateTime? selectedDate;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.addTask),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: InputDecoration(
-                  labelText: l10n.taskTitle,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: l10n.taskDescription,
-                  border: const OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: dueDateController,
-                decoration: InputDecoration(
-                  labelText: l10n.dueDate,
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.calendar_today),
-                    onPressed: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
-                        selectedDate = date;
-                        dueDateController.text = '${date.day}/${date.month}/${date.year}';
-                      }
-                    },
-                  ),
-                ),
-                readOnly: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (titleController.text.isNotEmpty && selectedDate != null) {
-                final userId = context.read<AuthService>().user?.uid ?? '';
-                final task = TaskModel(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  title: titleController.text,
-                  description: descriptionController.text,
-                  dueDate: selectedDate!,
-                  isCompleted: false,
-                  userId: userId,
-                  createdAt: DateTime.now(),
-                  priority: 1,
-                  tags: [],
-                );
-                context.read<TaskBloc>().add(AddTask(task));
-                Navigator.pop(context);
-              }
-            },
-            child: Text(l10n.add),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return Scaffold(
-      body: StreamBuilder<List<TaskModel>>(
-        stream: context.read<TaskBloc>().taskService.getTasksStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
-          }
-
-          final tasks = snapshot.data ?? [];
-
-          if (tasks.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.task_alt,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    l10n.noTasks,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: tasks.length,
-            itemBuilder: (context, index) {
-              final task = tasks[index];
-              return TaskCard(task: task);
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTaskDialog(context),
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-}
-
-class TaskCard extends StatelessWidget {
-  final TaskModel task;
-
-  const TaskCard({super.key, required this.task});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: ListTile(
-        title: Text(task.title),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(task.description),
-            const SizedBox(height: 4),
-            Text(
-              'Срок: ${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(
-                task.isCompleted
-                    ? Icons.check_circle
-                    : Icons.check_circle_outline,
-                color: task.isCompleted ? Colors.green : null,
-              ),
-              onPressed: () {
-                context.read<TaskBloc>().add(
-                      ToggleTaskCompletion(task.id, !task.isCompleted),
-                    );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () {
-                context.read<TaskBloc>().add(DeleteTask(task.id));
-              },
-            ),
-          ],
-        ),
       ),
     );
   }

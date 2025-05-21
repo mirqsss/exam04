@@ -1,18 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:exam04/models/task_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class TaskService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  static const String _tasksKey = 'tasks';
+  final SharedPreferences _prefs;
 
   TaskService({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
+    required SharedPreferences prefs,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _auth = auth ?? FirebaseAuth.instance,
+        _prefs = prefs;
 
   String get _userId => _auth.currentUser?.uid ?? '';
+  String get userId => _userId;
 
   // Получение всех задач пользователя
   Stream<List<TaskModel>> getTasksStream() {
@@ -138,5 +145,37 @@ class TaskService {
     return snapshot.docs
         .map((doc) => TaskModel.fromJson(doc.data()))
         .toList();
+  }
+
+  List<Map<String, dynamic>> getTasksJson() {
+    final tasksJson = _prefs.getStringList(_tasksKey) ?? [];
+    return tasksJson
+        .map((task) => Map<String, dynamic>.from(json.decode(task)))
+        .toList();
+  }
+
+  Future<void> saveTasks(List<Map<String, dynamic>> tasks) async {
+    final tasksJson = tasks
+        .map((task) => json.encode(task))
+        .toList();
+    await _prefs.setStringList(_tasksKey, tasksJson);
+  }
+
+  Future<void> addTaskJson(Map<String, dynamic> task) async {
+    final tasks = getTasksJson();
+    tasks.add(task);
+    await saveTasks(tasks);
+  }
+
+  Future<void> updateTaskJson(int index, Map<String, dynamic> task) async {
+    final tasks = getTasksJson();
+    tasks[index] = task;
+    await saveTasks(tasks);
+  }
+
+  Future<void> deleteTaskJson(int index) async {
+    final tasks = getTasksJson();
+    tasks.removeAt(index);
+    await saveTasks(tasks);
   }
 } 

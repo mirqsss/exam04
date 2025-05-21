@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:exam04/services/auth_service.dart';
+import 'package:exam04/services/localization_service.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:exam04/screens/tasks_screen.dart';
 import 'package:exam04/screens/calendar_screen.dart';
@@ -33,9 +34,57 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(l10n.appTitle),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.language),
             onPressed: () {
-              context.read<AuthService>().signOut();
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(l10n.language),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        title: const Text('English'),
+                        onTap: () {
+                          context.read<LocalizationService>().setLocale('en');
+                          Navigator.pop(context);
+                        },
+                      ),
+                      ListTile(
+                        title: const Text('Русский'),
+                        onTap: () {
+                          context.read<LocalizationService>().setLocale('ru');
+                          Navigator.pop(context);
+                        },
+                      ),
+                      ListTile(
+                        title: const Text('Қазақша'),
+                        onTap: () {
+                          context.read<LocalizationService>().setLocale('kk');
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              try {
+                await context.read<AuthService>().signOut();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ошибка при выходе: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
           ),
         ],
